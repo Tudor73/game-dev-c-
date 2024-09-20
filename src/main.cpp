@@ -11,10 +11,14 @@
 #include <iostream>
 #include <random>
 #include "globals.h"
+#include "grid.h"
+#include <memory>
 
 int WIDTH = 800;
-int HEIGHT = 600;
+int HEIGHT = 800;
 const int ENEMIES_PER_WAVE = 4;
+
+std::shared_ptr<Grid> grid = std::make_shared<Grid>();
 
 bool IsMouseOver(sf::CircleShape shape, sf::RenderWindow *window)
 {
@@ -61,36 +65,42 @@ sf::Vector2i posInsideWindow(sf::Vector2i pos)
 	return newPos;
 }
 
-std::vector<Enemy> SpawnEnemies(int nr)
+void SpawnEnemies(int nr)
 {
-	std::vector<Enemy> enemies;
-
 	const int intervalSize = HEIGHT / nr;
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	for (std::size_t i = 0; i < nr - 1; i++)
 	{
-		Enemy e;
 		std::uniform_real_distribution<double> dis(i * intervalSize,
 												   (i + 1) * intervalSize - 50);
 		auto y = dis(gen);
-		e.shape.setPosition(0.f, y);
-		enemies.push_back(e);
+		std::shared_ptr<Enemy> e = std::make_shared<Enemy>(grid, 0.f, y);
+		grid->add(e);
 	}
-	return enemies;
 }
 
-void moveEnemies(std::vector<Enemy> &enemies)
+void moveEnemies()
 {
-	for (Enemy &e : enemies)
+	for (size_t i = 0; i < Grid::NUM_CELLS; i++)
 	{
-		e.shape.move(1.f, 0.f);
+		for (size_t j = 0; j < Grid::NUM_CELLS; j++)
+		{
+			for (auto u : grid->cells[i][j])
+			{
+				Enemy *e = dynamic_cast<Enemy *>(u.get());
+				if (e)
+				{
+					e->move(e->x + 1.f, e->y);
+				}
+			}
+		}
 	}
 }
 
-void moveBullets(Player &p)
+void moveBullets(std::shared_ptr<Player> p)
 {
-	for (auto &bullet : p.bullets)
+	for (auto &bullet : p.get()->bullets)
 	{
 
 		auto angle = bullet.second;
@@ -109,9 +119,8 @@ int main()
 
 	window.setVerticalSyncEnabled(true);
 	bool isButtonPressed = false;
-	Player player = Player();
-
-	std::vector<Enemy> enemies;
+	std::shared_ptr<Player> player = std::make_shared<Player>(grid);
+	grid->add(player);
 	sf::Clock clock;
 
 	bool w_key, a_key, s_key, d_key = false;
@@ -148,55 +157,61 @@ int main()
 			}
 			if (event.type == sf::Event::MouseMoved)
 			{
-				double angle = atan2(sf::Mouse::getPosition(window).y - player.gun.getPosition().y, sf::Mouse::getPosition(window).x - player.gun.getPosition().x) * 180 / M_PI;
-				player.Rotate(angle + 90);
+				double angle = atan2(sf::Mouse::getPosition(window).y - player->gun.getPosition().y, sf::Mouse::getPosition(window).x - player->gun.getPosition().x) * 180 / M_PI;
+				player->Rotate(angle + 90);
 			}
 
 			if (event.type == sf::Event::MouseButtonPressed)
 			{
 				if (event.mouseButton.button == sf::Mouse::Left)
 				{
-					double angle = atan2(sf::Mouse::getPosition(window).y - player.gun.getPosition().y, sf::Mouse::getPosition(window).x - player.gun.getPosition().x);
-					player.Shoot(angle);
+					double angle = atan2(sf::Mouse::getPosition(window).y - player->gun.getPosition().y, sf::Mouse::getPosition(window).x - player->gun.getPosition().x);
+					player->Shoot(angle);
 				}
 			}
 		}
 
 		if (clock.getElapsedTime() >= sf::seconds(1))
 		{
-			auto enemyWave = SpawnEnemies(ENEMIES_PER_WAVE);
-			enemies.insert(enemies.end(), enemyWave.begin(), enemyWave.end());
+			SpawnEnemies(ENEMIES_PER_WAVE);
 			clock.restart();
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
 		{
-			player.Move(0.f, -1.f);
+			player->Move(0.f, -1.f);
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 		{
-			player.Move(-1.f, 0.f);
+			player->Move(-1.f, 0.f);
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
 		{
-			player.Move(0.f, 1.f);
+			player->Move(0.f, 1.f);
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
 		{
-			player.Move(1.f, 0.f);
+			player->Move(1.f, 0.f);
 		}
 
-		moveEnemies(enemies);
+		moveEnemies();
 		moveBullets(player);
+
 		window.clear();
-		for (const Enemy &e : enemies)
+		for (size_t i = 0; i < Grid::NUM_CELLS; i++)
 		{
-			window.draw(e.shape);
+			for (size_t j = 0; j < Grid::NUM_CELLS; j++)
+			{
+				for (auto u : grid->cells[i][j])
+				{
+					u->draw(window);
+				}
+			}
 		}
-		for (auto &b : player.bullets)
+
+		for (auto &b : player->bullets)
 		{
 			window.draw(b.first);
 		}
-		player.DrawPlayer(window);
 		window.display();
 	}
 	return 0;

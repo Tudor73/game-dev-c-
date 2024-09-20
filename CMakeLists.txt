@@ -13,7 +13,7 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
-add_executable(main src/main.cpp src/enemy.cpp src/player.cpp)
+add_executable(main src/main.cpp src/enemy.cpp src/player.cpp src/grid.cpp)
 target_link_libraries(main PRIVATE sfml-graphics sfml-window sfml-system)
 target_compile_features(main PRIVATE cxx_std_17)
 if(WIN32)

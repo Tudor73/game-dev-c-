@@ -1,6 +1,6 @@
 #include "player.h"
 
-Player::Player()
+Player::Player(std::shared_ptr<Grid> grid)
 {
     sf::CircleShape circle(50.f);
 
@@ -8,7 +8,11 @@ Player::Player()
     circle.setRadius(20.f);
     circle.setPosition(static_cast<float>(WIDTH / 2),
                        static_cast<float>(HEIGHT / 2));
+
     this->shape = circle;
+    this->x = WIDTH / 2;
+    this->y = HEIGHT / 2;
+    this->grid = grid;
 
     sf::RectangleShape rec(sf::Vector2f(10.f, 25.f));
     rec.setPosition(static_cast<float>(WIDTH / 2) + circle.getRadius(),
@@ -24,10 +28,13 @@ std::string Player::PlayerToString()
 void Player::Move(float offsetX, float offsetY)
 {
     this->shape.move(offsetX, offsetY);
+
+    this->move(shape.getPosition().x, shape.getPosition().y);
+
     this->gun.move(offsetX, offsetY);
 }
 
-void Player::DrawPlayer(sf::RenderWindow &window)
+void Player::draw(sf::RenderWindow &window)
 {
     window.draw(this->shape);
     window.draw(this->gun);
